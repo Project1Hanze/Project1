@@ -3,6 +3,9 @@
 //2 is shoot
 //4 is revive
 
+test
+
+
 int reload;
 int vorigeleven  = 1;
 int levens = 1;
@@ -79,5 +82,6 @@ if (reload == 1 && ammo != 0 && ammo != 6 && levens == 1){/*nog kogels = trage r
   magazineuit = 1;
 }
 }
+
 
 
