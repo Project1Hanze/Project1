@@ -1,4 +1,11 @@
 #include <Arduino.h>
+//millis wordt gebruikt omdat delay niet kan
+//alles gaat via serialmonitor omdat we nog geen displaycode hebben
+
+
+
+
+
 //pins deff
 const int PIN_DOOD    = 35;
 const int PIN_RELOAD  = 34;
