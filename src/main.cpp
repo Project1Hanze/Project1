@@ -36,19 +36,32 @@ bool prevTrigger = LOW;
 bool prevReload  = LOW;
 bool prevDood    = LOW;
 bool prevReset   = LOW;
+bool prevHit     = LOW;
+bool prevPVP     = HIGH;  // Initialize HIGH because INPUT_PULLUP starts HIGH
+bool prevRDR     = HIGH;  // Initialize HIGH because INPUT_PULLUP starts HIGH
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+  delay(1000);  // Give Serial time to initialize
+  Serial.println("System Starting...");
+  
   pinMode(PIN_DOOD, INPUT_PULLUP);
   pinMode(PIN_RELOAD, INPUT_PULLUP);
   pinMode(PIN_TRIGGER, INPUT_PULLUP);
   pinMode(PIN_RESET, INPUT_PULLUP);
   pinMode(PIN_HIT, INPUT_PULLUP);
   pinMode(PIN_SETUP, INPUT_PULLUP);
+  pinMode(PIN_RDR, INPUT_PULLUP);
+  pinMode(PIN_PVP, INPUT_PULLUP);
+  
+  Serial.println("Waiting for game mode selection...");
   startMillis = millis();
 }
 
 void loop() {
+  // Update current time
+  currentMillis = millis();
+  
   // Lees inputs
   bool doodKnop   = digitalRead(PIN_DOOD);
   bool reloadKnop = digitalRead(PIN_RELOAD);
@@ -59,40 +72,51 @@ void loop() {
   bool rdr        = digitalRead(PIN_RDR);
   bool pvp        = digitalRead(PIN_PVP);
   
-
   // Detecteer rising edges (LOW -> HIGH)
   bool doodPressed   = (doodKnop == HIGH   && prevDood   == LOW);
   bool reloadPressed = (reloadKnop == HIGH && prevReload == LOW);
   bool triggerPressed= (trigger == HIGH    && prevTrigger== LOW);
   bool resetPressed  = (resetKnop == HIGH  && prevReset  == LOW);
+  bool hitPressed    = (hitknop == HIGH    && prevHit    == LOW);
+  bool pvpPressed    = (pvp == HIGH        && prevPVP    == LOW);
+  bool rdrPressed    = (rdr == HIGH        && prevRDR    == LOW);
 
   // Update vorige waarden
   prevDood   = doodKnop;
   prevReload = reloadKnop;
   prevTrigger= trigger;
   prevReset  = resetKnop;
-
+  prevHit    = hitknop;
+  prevPVP    = pvp;
+  prevRDR    = rdr;
   switch (currentState) {
     case SETUP:
-      if (pvp && currentState == SETUP){
+      if (pvpPressed){
         levens = 3;
         currentState = ALIVE;
-    }else if (rdr && currentState == SETUP){
+        Serial.println("PVP mode selected - 3 lives");
+      } else if (rdrPressed){
         levens = 1;
         currentState = ALIVE;
-    }
+        Serial.println("RDR mode selected - 1 life");
+      }
+      break;
+    
     case ALIVE:
-      if (hitknop){
+      if (hitPressed){
         levens = levens - 1;
+        Serial.print("Hit! Lives remaining: ");
+        Serial.println(levens);
         startMillis = currentMillis;
         currentState = HIT;
-      } else if (levens == 0 || doodPressed) {
+      } else if (levens <= 0 || doodPressed) {
         currentState = DEAD;
-        Serial.println("dood");
+        Serial.println("DEAD - Press RESET to respawn");
       } else if (reloadPressed) {
         startMillis = currentMillis;
         currentState = RELOADING;
-      } else if (triggerPressed && ammo > 0 && currentMillis - startMillis >= period) {
+        Serial.println("Reloading...");
+      } else if (triggerPressed && ammo > 0) {
         startMillis = currentMillis;
         currentState = SHOOTING;
       }
@@ -109,30 +133,24 @@ void loop() {
       
     case DEAD:
       if (resetPressed) {
-        currentState = ALIVE;
         ammo = 0;
         magazineUit = 1;
-        Serial.println("Back in the game, Ammo = 0");
+        levens = 0;
+        Serial.println("Reset - Select game mode again (PVP/RDR)");
+        currentState = SETUP;
       }
       break;
 
     case RELOADING:
-      if (ammo != 6 && ammo != 0 && magazineUit == 1 && currentMillis - startMillis >= period2){
-       ammo = 6;
-        magazineUit = 0;
-        Serial.print("Reloaded, ammo = ");
-        Serial.println(ammo);
-        currentState = ALIVE;
-      }else if(ammo == 0 && magazineUit == 1 && currentMillis - startMillis >= period3) {
+      if ((ammo != 6 && ammo != 0 && magazineUit == 1 && currentMillis - startMillis >= period2) ||
+          (ammo == 0 && magazineUit == 1 && currentMillis - startMillis >= period3)) {
         ammo = 6;
         magazineUit = 0;
         Serial.print("Reloaded, ammo = ");
         Serial.println(ammo);
         currentState = ALIVE;
-      }else{
-      currentState = RELOADING;
-        break;
       }
+      break;
     
 
     case SHOOTING:
