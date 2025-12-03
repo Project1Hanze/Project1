@@ -2,7 +2,7 @@
 //millis wordt gebruikt omdat delay niet kan
 //alles gaat via serialmonitor omdat we nog geen displaycode hebben
 //als iemand de code kan versimpelen is dat erg fijn
-
+//test
 
 
 
