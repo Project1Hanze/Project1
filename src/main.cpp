@@ -1,10 +1,4 @@
 #include <Arduino.h>
-//
-
-
-
-
-
 
 const int PIN_DOOD    = 35;
 const int PIN_RELOAD  = 34;
@@ -33,10 +27,7 @@ enum State {
 
 State currentState = SETUP;
 
-
 int ammo = 0;
-
-
 
 bool prevTrigger = HIGH; 
 bool prevReload  = LOW;  
@@ -46,40 +37,16 @@ bool prevHit     = HIGH;
 bool prevPVP     = HIGH;
 bool prevRDR     = HIGH;
 
-
-
-
-
 unsigned long triggerLastChange = 0;
 bool triggerRawLast = HIGH;
 bool triggerStable = HIGH; 
 const unsigned long TRIGGER_DEBOUNCE_MS = 50; 
 
-
-
-  
-
-
-
-
-
-
-
-
 void setup() {
   Serial.begin(115200);
 
-
-
-
-
-
-
-  
   pinMode(PIN_DOOD, INPUT_PULLUP);
-
   pinMode(PIN_RELOAD, INPUT);
-
   pinMode(PIN_TRIGGER, INPUT_PULLUP);
   pinMode(PIN_RESET, INPUT_PULLUP);
   pinMode(PIN_HIT, INPUT_PULLUP);
@@ -217,3 +184,4 @@ void loop() {
       currentState = ALIVE;
       break;
   }
+}
