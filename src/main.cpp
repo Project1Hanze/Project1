@@ -199,4 +199,3 @@ void loop() {
   // Update life LEDs
   updateLifeLEDs(lives);
 }
-}
