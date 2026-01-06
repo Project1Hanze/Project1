@@ -1210,29 +1210,71 @@ void loop() {
 
   // Display lives if teller > 0
   if(teller > 0){
-    switch(lives) {
-    case 0:
-    display.drawBitmap(0, 0, leven[3] , 128,64,1);
-    display.display();
-    break;
+	switch(lives) {
+	case 0:
+	display.drawBitmap(0, 0, leven[3] , 128,64,1);
+	display.display();
+	break;
 
-    case 1:
-    display.drawBitmap(0, 0, leven[0] , 128,64,1);
-    display.display();
-    break;
+	case 1:
+	display.drawBitmap(0, 0, leven[0] , 128,64,1);
+	display.display();
+	break;
 
-    case 2:
-    display.drawBitmap(0, 0, leven[1] , 128,64,1);
-    display.display();
-    break;
+	case 2:
+	display.drawBitmap(0, 0, leven[1] , 128,64,1);
+	display.display();
+	break;
 
-    case 3:
-    display.drawBitmap(0, 0, leven[2] , 128,64,1);
-    display.display();
-    break;
-    }
+	case 3:
+	display.drawBitmap(0, 0, leven[2] , 128,64,1);
+	display.display();
+	break;
+	}
   }
+
+  if(!digitalRead(KY040_SW) && state == 2){
+    
+      switch(ammo) {
+
+      case 0:
+      display.drawBitmap(0, 0, selectie[6] , 128,64,1);
+      display.display();
+      break;
+
+      case 1:
+      display.drawBitmap(0, 0, selectie[0] , 128,64,1);
+      display.display();
+      break;
+
+      case 2:
+      display.drawBitmap(0, 0, selectie[1] , 128,64,1);
+      display.display();
+      break;
+
+      case 3:
+      display.drawBitmap(0, 0, selectie[2] , 128,64,1);
+      display.display();
+      break;
+
+      case 4:
+      display.drawBitmap(0, 0, selectie[3] , 128,64,1);
+      display.display();
+      break;
+
+      case 5:
+      display.drawBitmap(0, 0, selectie[4] , 128,64,1);
+      display.display();
+      break;
+
+	  case 6:
+	  display.drawBitmap(0, 0, selectie[5] , 128,64,1);
+	  display.display();
+	  break;
+	  }
+	}
 }
+
 void selectie_gemaakt(){
   state = 3;
 }
