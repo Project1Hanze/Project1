@@ -48,6 +48,14 @@ bool triggerRawLast = HIGH;
 bool triggerStable = HIGH; 
 const unsigned long TRIGGER_DEBOUNCE_MS = 50; 
 
+// Interrupt flag for hit detection
+volatile bool hitInterruptFlag = false;
+
+// ISR for hit sensor
+void IRAM_ATTR hitISR() {
+  hitInterruptFlag = true;
+} 
+
 void setup() {
   Serial.begin(115200);
 
@@ -60,6 +68,9 @@ void setup() {
   pinMode(PIN_SETUP, INPUT_PULLUP);
   pinMode(PIN_RDR, INPUT_PULLUP);
   pinMode(PIN_PVP, INPUT_PULLUP);
+
+  // Attach interrupt for hit sensor
+  attachInterrupt(digitalPinToInterrupt(PIN_HIT), hitISR, FALLING);
   
   startMillis = millis();
 }
@@ -85,9 +96,12 @@ void loop() {
   bool deathPressed = (deathButton == LOW && prevDeath == HIGH);
   bool reloadPressed = (reloadButton == HIGH && prevReload == LOW);
   bool resetPressed = (resetButton == LOW && prevReset == HIGH);
-  bool hitPressed = (hitSensor == LOW && prevHit == HIGH);
+  bool hitPressed = hitInterruptFlag || (hitSensor == LOW && prevHit == HIGH);  // Use interrupt flag or poll
   bool pvpPressed = (pvpButton == LOW && prevPVP == HIGH);
   bool rdrPressed = (rdrButton == LOW && prevRDR == HIGH);
+  
+  // Reset interrupt flag
+  hitInterruptFlag = false;
   
   // Trigger debouncing
   bool triggerPressed = false;
