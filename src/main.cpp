@@ -9,6 +9,9 @@ const int PIN_HIT     = 4;
 const int PIN_SETUP   = 16;
 const int PIN_RDR     = 19;
 const int PIN_PVP     = 18;
+const int PIN_LED1    = 2;   // LED for 1 life
+const int PIN_LED2    = 12;  // LED for 2 lives
+const int PIN_LED3    = 13;  // LED for 3 lives
 
 // Game variables
 int lives = 0;
@@ -54,6 +57,13 @@ volatile bool hitInterruptFlag = false;
 // ISR for hit sensor
 void IRAM_ATTR hitISR() {
   hitInterruptFlag = true;
+}
+
+// Function to update life LEDs
+void updateLifeLEDs(int lives) {
+  digitalWrite(PIN_LED1, lives >= 1 ? HIGH : LOW);
+  digitalWrite(PIN_LED2, lives >= 2 ? HIGH : LOW);
+  digitalWrite(PIN_LED3, lives >= 3 ? HIGH : LOW);
 } 
 
 void setup() {
@@ -68,6 +78,9 @@ void setup() {
   pinMode(PIN_SETUP, INPUT_PULLUP);
   pinMode(PIN_RDR, INPUT_PULLUP);
   pinMode(PIN_PVP, INPUT_PULLUP);
+  pinMode(PIN_LED1, OUTPUT);
+  pinMode(PIN_LED2, OUTPUT);
+  pinMode(PIN_LED3, OUTPUT);
 
   // Attach interrupt for hit sensor
   attachInterrupt(digitalPinToInterrupt(PIN_HIT), hitISR, FALLING);
@@ -182,5 +195,8 @@ void loop() {
       currentState = ALIVE;
       break;
   }
+
+  // Update life LEDs
+  updateLifeLEDs(lives);
 }
 }
