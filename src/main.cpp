@@ -1098,7 +1098,22 @@ void setup() {
 }
 
 void loop() {
-  // Update current time
+ KY040_CLK_ACTUEEL = digitalRead(KY040_CLK);
+
+  Serial.println(teller);
+
+  if(KY040_CLK_ACTUEEL != KY040_CLK_LAATST){
+    if(digitalRead(KY040_DT) != KY040_CLK_ACTUEEL){
+      teller ++;
+      richting = true;
+    }
+
+    else{
+      richting = false;
+      teller --;
+    }
+  }
+		// Update current time
   currentMillis = millis();
   
   // Read all inputs
