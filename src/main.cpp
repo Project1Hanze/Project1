@@ -30,9 +30,10 @@ int KY040_CLK_ACTUEEL;
 int ja = 0;
 int lives = 0;
 int ammo = 0;
+int previousLives = -1;
 bool magazineInserted = false;
-
-void selectie_gemaakt();
+int hitsec = 0;
+int nee = 0;
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 // 'Selectie_Standoff', 128x64px
@@ -1109,7 +1110,7 @@ void setup() {
 
   KY040_CLK_LAATST = digitalRead(KY040_CLK);
 
-  attachInterrupt(digitalPinToInterrupt(KY040_SW), selectie_gemaakt, RISING);
+
 }
 
 void loop() {
@@ -1214,6 +1215,7 @@ void loop() {
       if (digitalRead(PIN_HIT) == HIGH) {
        lives--;
         startMillis = currentMillis;
+        hitsec = 1;
         currentState = HIT;
       } else if (lives <= 0 || deathPressed) {
         currentState = DEAD;
@@ -1228,7 +1230,9 @@ void loop() {
 
     case HIT:
       if (currentMillis - startMillis >= HIT_DURATION) {
+       hitsec = 0;
         currentState = ALIVE;
+
       }
       // Else remain in HIT
       break;
@@ -1254,7 +1258,7 @@ void loop() {
       currentState = ALIVE;
       break;
   }
-if(ja == 1){
+if(ja == 1 && lives != previousLives || ja == 1 && right == 1 && lives != previousLives){
       switch(lives) {
       case 0:
       display.clearDisplay();
@@ -1280,10 +1284,56 @@ if(ja == 1){
       display.display();
       break;
       }
+      previousLives = lives;
     }
+    if(left == 1 && ja == 1 && hitsec == 0){
+      switch(ammo) {
+
+      case 0:
+      display.clearDisplay();
+      display.drawBitmap(0, 0, kogel[6] , 128,64,1);
+      display.display();
+      break;
+
+      case 1:
+      display.clearDisplay();
+      display.drawBitmap(0, 0, kogel[5] , 128,64,1);
+      display.display();
+      break;
+
+      case 2:
+      display.clearDisplay();
+      display.drawBitmap(0, 0, kogel[4] , 128,64,1);
+      display.display();
+      break;
+
+      case 3:
+      display.clearDisplay();
+      display.drawBitmap(0, 0, kogel[3] , 128,64,1);
+      display.display();
+      break;
+
+      case 4:
+      display.clearDisplay();
+      display.drawBitmap(0, 0, kogel[2] , 128,64,1);
+      display.display();
+      break;
+
+      case 5:
+      display.clearDisplay();
+      display.drawBitmap(0, 0, kogel[1] , 128,64,1);
+      display.display();
+      break;
+
+      case 6:
+      display.clearDisplay();
+      display.drawBitmap(0, 0, kogel[0] , 128,64,1);
+      display.display();
+      break;
+      }
+
   // Update life LEDs
   updateLifeLEDs(lives);
 }
-void selectie_gemaakt(){
-  display.clearDisplay();
 }
+
