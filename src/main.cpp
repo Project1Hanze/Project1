@@ -4,16 +4,16 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #define KY040_CLK 32
-#define KY040_DT 33
+#define KY040_DT 35
 #define KY040_SW 15
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
-
+const
 #define CLK_PIN 32  // CLK or A pin of the encoder
 #define DT_PIN 35
 // Pin definitions
 const int PIN_DEATH   = 35;
-const int PIN_MAG  = 34;
+const int PIN_MAG  = 18;
 const int PIN_TRIGGER = 17;
 const int PIN_RESET   = 5;
 const int PIN_HIT     = 4;
@@ -1057,13 +1057,6 @@ bool prevHit     = HIGH;
 
 
 
-unsigned long triggerLastChange = 0;
-bool triggerRawLast = HIGH;
-bool triggerStable = HIGH; 
-const unsigned long TRIGGER_DEBOUNCE_MS = 50; 
-
-
-
 // Function to update life LEDs
 void updateLifeLEDs(int lives) {
   digitalWrite(PIN_LED1, lives >= 1 ? HIGH : LOW);
@@ -1081,7 +1074,7 @@ void setup() {
   pinMode(KY040_SW, INPUT_PULLUP);
   pinMode(PIN_DEATH, INPUT_PULLUP);
   pinMode(PIN_MAG, INPUT_PULLUP);
-  pinMode(PIN_TRIGGER, INPUT_PULLUP);
+  pinMode(PIN_TRIGGER, INPUT);
   pinMode(PIN_RESET, INPUT_PULLUP);
   pinMode(PIN_HIT, INPUT_PULLUP);  // IR sensor
   pinMode(PIN_SETUP, INPUT_PULLUP);
@@ -1161,31 +1154,10 @@ void loop() {
   
   // Detect button presses (edges)
   bool deathPressed = (deathButton == LOW && prevDeath == HIGH);
- 
- 
-
-  
-  // Reset interrupt flag
-  
-  
-  // Trigger debouncing
-  bool triggerPressed = false;
-  if (trigger != triggerRawLast) {
-    triggerRawLast = trigger;
-    triggerLastChange = currentMillis;
-  }
-  if ((currentMillis - triggerLastChange) > TRIGGER_DEBOUNCE_MS) {
-    if (triggerStable != trigger) {
-      triggerStable = trigger;
-      if (triggerStable == LOW) {
-        triggerPressed = true;
-      }
-    }
-  }
+  bool triggerPressed = (trigger == LOW && prevTrigger == HIGH);
   
   // Update previous states
   prevDeath = deathButton;
-  
   prevTrigger = trigger;
   
   
@@ -1203,7 +1175,9 @@ void loop() {
       if (right == 1 && !digitalRead(KY040_SW) && ja == 0 && dood == 0) {
       lives = 3;
       ja = 1;
-      ammo = 0;
+      ammo = 6;
+	
+
       display.clearDisplay();
       display.drawBitmap(0, 0, leven[2] , 128,64,1);
       display.display();
@@ -1211,7 +1185,8 @@ void loop() {
       } else if (left == 1 && !digitalRead(KY040_SW) && ja == 0 && dood == 0) {
         lives = 1;
       ja = 1;
-      ammo = 0;
+      ammo = 6;
+	  
       display.clearDisplay();
       display.drawBitmap(0, 0, leven[3] , 128,64,1);
       display.display();
