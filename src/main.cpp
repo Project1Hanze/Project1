@@ -1109,7 +1109,8 @@ void setup() {
   Serial.begin(115200);
   display.begin(SSD1306_SWITCHCAPVCC, 0x3c);
   display.clearDisplay();
-  
+  pinMode(17, OUTPUT);
+  digitalWrite(17, HIGH); // Power the display
   // Configure IR receiver pins
   pinMode(IR_PIN, INPUT);  // IR receivers should not have pull-up
   pinMode(IR_STATUS_LED, OUTPUT);
