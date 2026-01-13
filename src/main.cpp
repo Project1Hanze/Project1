@@ -3,6 +3,31 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+
+// IR Receiver pins
+static const uint8_t IR_PIN = 17;   // IR receiver OUT pin (adjusted to avoid conflicts)
+static const uint8_t IR_TX_PIN = 18; // IR LED (through resistor + transistor if possible)
+static const uint8_t IR_STATUS_LED = 27; // Optional status LED for IR activity
+
+// Ring buffer for IR pulse data
+static const uint8_t BUF_SIZE = 64;
+volatile uint32_t pulseDurationUs[BUF_SIZE];
+volatile uint8_t pulseState[BUF_SIZE];
+volatile uint8_t writeIndex = 0;
+volatile uint8_t readIndex = 0;
+volatile uint32_t lastChangeUs = 0;
+
+// Button and LED state tracking
+volatile bool irLedOn = false;
+volatile uint32_t irLedOnTimeMs = 0;
+static const uint32_t IR_LED_DURATION_MS = 500;  // LED stays on for 500ms when signal received
+
+// LEDC settings for 38 kHz carrier
+static const uint8_t LEDC_CHANNEL = 0;
+static const uint32_t LEDC_FREQ = 38000;
+static const uint8_t LEDC_RES_BITS = 8;
+static const uint32_t LEDC_DUTY = 128; // 50% duty at 8-bit resolution
+
 #define KY040_CLK 33
 #define KY040_DT 32
 #define KY040_SW 14
@@ -32,6 +57,12 @@ bool magazineInserted = true;
 bool prevMagazineInserted = false;
 int hitsec = 0;
 int dood = 0;
+
+// Hit detection debouncing
+unsigned long lastHitTime = 0;
+const unsigned long HIT_DEBOUNCE_MS = 1000;  // 1 second between hits
+bool prevHitState;
+
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 // 'Selectie_Standoff', 128x64px
 const unsigned char epd_bitmap_Selectie_Deathmatch [] PROGMEM = {
@@ -1022,6 +1053,21 @@ enum State {
 volatile State thisState = IDLE;
 int prevCLK = HIGH;  // Initial state assumption
 
+// IR receiver interrupt handler: records pulse durations
+void IRAM_ATTR handleIrChange() {
+	const uint32_t now = micros();
+	const uint8_t state = digitalRead(IR_PIN);
+	const uint32_t duration = (lastChangeUs == 0) ? 0 : (now - lastChangeUs);
+	lastChangeUs = now;
+
+	const uint8_t nextIndex = static_cast<uint8_t>((writeIndex + 1) % BUF_SIZE);
+	if (nextIndex != readIndex) {  // Drop sample if buffer is full.
+		pulseDurationUs[writeIndex] = duration;
+		pulseState[writeIndex] = state;
+		writeIndex = nextIndex;
+	}
+}
+
 // Interrupt service routine to handle encoder changes
 void IRAM_ATTR handleEncoder() {
   int clk = digitalRead(CLK_PIN);
@@ -1063,6 +1109,20 @@ void setup() {
   Serial.begin(115200);
   display.begin(SSD1306_SWITCHCAPVCC, 0x3c);
   display.clearDisplay();
+  
+  // Configure IR receiver pins
+  pinMode(IR_PIN, INPUT);  // IR receivers should not have pull-up
+  pinMode(IR_STATUS_LED, OUTPUT);
+  digitalWrite(IR_STATUS_LED, LOW);
+  
+  // Configure 38 kHz PWM for the IR LED using older LEDC API
+  ledcSetup(LEDC_CHANNEL, LEDC_FREQ, LEDC_RES_BITS);
+  ledcAttachPin(IR_TX_PIN, LEDC_CHANNEL);
+  ledcWrite(LEDC_CHANNEL, 0);
+  
+  // Attach interrupt to IR pin (both edges to capture demodulated pulses)
+  attachInterrupt(digitalPinToInterrupt(IR_PIN), handleIrChange, CHANGE);
+  
   // Configure pins
   pinMode(KY040_CLK, INPUT);
   pinMode(KY040_DT, INPUT);
@@ -1071,7 +1131,12 @@ void setup() {
   pinMode(PIN_MAG, INPUT_PULLUP);
   pinMode(PIN_TRIGGER, INPUT_PULLUP);
   
-  pinMode(PIN_HIT, INPUT_PULLUP);  // IR sensor
+  pinMode(PIN_HIT, INPUT);  // IR sensor - no pull-up for IR receivers
+  
+  // Initialize hit state to current sensor reading to prevent false trigger at startup
+  prevHitState = digitalRead(PIN_HIT);
+  Serial.print("Initial PIN_HIT state: ");
+  Serial.println(prevHitState);
   
   pinMode(PIN_LED1, OUTPUT);
   pinMode(PIN_LED2, OUTPUT);
@@ -1085,15 +1150,12 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(CLK_PIN), handleEncoder, CHANGE);
 
   Serial.println("Rotary Encoder State Machine Initialized");
+  Serial.println("IR receiver ready. Waiting for remote signals...");
   thisState = IDLE;
   // Attach interrupt for hit sensor
   
   
   startMillis = millis();
-
-  digitalWrite(KY040_CLK, true);
-  digitalWrite(KY040_DT, true);
-  digitalWrite(KY040_SW, true);
 
  
 
@@ -1165,13 +1227,11 @@ void loop() {
   prevMagazineInserted = magazineInserted;
   // State machine
   switch (currentState) {
-    case SETUP:
+    case SETUP: {
       if (right == 1 && !digitalRead(KY040_SW) && ja == 0 && dood == 0) {
       lives = 3;
       ja = 1;
       ammo = 6;
-	
-
       display.clearDisplay();
       display.drawBitmap(0, 0, leven[2] , 128,64,1);
       display.display();
@@ -1180,50 +1240,79 @@ void loop() {
         lives = 1;
       ja = 1;
       ammo = 6;
-	  
       display.clearDisplay();
       display.drawBitmap(0, 0, leven[3] , 128,64,1);
       display.display();
       currentState = ALIVE;
       }
       break;
+    }
     
-    case ALIVE:
-      if (digitalRead(PIN_HIT) == LOW) {
-       lives--;
-        startMillis = currentMillis;
-        hitsec = 1;
-        right2 = 1;
-        left2 = 1;
-        currentState = HIT;
-      } else if (lives <= 0) {
+    case ALIVE: {
+      // Read hit sensor with debouncing
+      bool hitState = digitalRead(PIN_HIT);
+      
+      // Detect hit on falling edge (HIGH to LOW transition) with debouncing
+      if (hitState == LOW && prevHitState == HIGH) {
+        Serial.print("Edge detected! Time since last hit: ");
+        Serial.println(currentMillis - lastHitTime);
+        // Check if enough time has passed since last hit
+        if ((currentMillis - lastHitTime) >= HIT_DEBOUNCE_MS) {
+          lives--;
+          lastHitTime = currentMillis;
+          startMillis = currentMillis;
+          hitsec = 1;
+          right2 = 1;
+          left2 = 1;
+          currentState = HIT;
+          Serial.print("HIT DETECTED! Lives remaining: ");
+          Serial.println(lives);
+        } else {
+          Serial.println("Hit ignored - too soon after last hit");
+        }
+      }
+      prevHitState = hitState;
+      
+      if (lives <= 0) {
     
         currentState = DEAD;
       } else if (triggerPressed && ammo > 0 && magazineInserted) {
         ammo--;
         Serial.println(ammo);
+        
+        // Send IR pulse when shooting
+        Serial.println("Sending IR pulse!");
+        ledcWrite(LEDC_CHANNEL, LEDC_DUTY);
+        delayMicroseconds(9000);  // 9ms carrier burst
+        ledcWrite(LEDC_CHANNEL, 0);
+        delayMicroseconds(4500);  // 4.5ms pause
+        
         startMillis = currentMillis;
         currentState = SHOOTING;
       }
       break;
+    }
 
-    case HIT:
+    case HIT: {
       if (currentMillis - startMillis >= HIT_DURATION) {
        hitsec = 0;
         currentState = ALIVE;
-
       }
       // Else remain in HIT
       break;
-      
+    }
 
-    
-    break;
-    case SHOOTING:
+    case SHOOTING: {
       if (currentMillis - startMillis >= RELOAD_DURATION_PARTIAL) {
         currentState = ALIVE;
       }
       break;
+    }
+    
+    case DEAD: {
+      // Dead state - do nothing
+      break;
+    }
 }
       if(ja == 1 && lives != previousLives && dood == 0 || ja == 1 && right == 1 && right2 == 1 && dood == 0){
       switch(lives) {
@@ -1302,6 +1391,59 @@ void loop() {
       break;
       }
     }
+  
+  // Process IR signals - move captured pulses from ISR buffer to main loop
+  static uint32_t lastIrEdgeReportMs = 0;
+  while (readIndex != writeIndex) {
+    noInterrupts();
+    const uint32_t duration = pulseDurationUs[readIndex];
+    const uint8_t state = pulseState[readIndex];
+    readIndex = static_cast<uint8_t>((readIndex + 1) % BUF_SIZE);
+    interrupts();
+
+    // Print IR pulse data for debugging
+    Serial.print("IR State: ");
+    Serial.print(state ? "HIGH" : "LOW");
+    Serial.print("  duration(us): ");
+    Serial.println(duration);
+
+    // Turn on status LED when we detect an IR signal burst (LOW state with significant duration)
+    if (!state && duration > 200 && duration < 100000) {
+      if (!irLedOn) {
+        irLedOn = true;
+        irLedOnTimeMs = currentMillis;
+        digitalWrite(IR_STATUS_LED, HIGH);
+        Serial.println("IR signal received - LED on!");
+        
+        // Register a HIT when IR pulse is received (only if game is active)
+        if (ja == 1 && currentState == ALIVE && dood == 0) {
+          lives--;
+          Serial.println("HIT detected via IR!");
+          startMillis = currentMillis;
+          hitsec = 1;
+          right2 = 1;
+          left2 = 1;
+          currentState = HIT;
+        }
+      }
+    }
+  }
+
+  // Handle IR status LED timing
+  if (irLedOn) {
+    if (currentMillis - irLedOnTimeMs >= IR_LED_DURATION_MS) {
+      irLedOn = false;
+      digitalWrite(IR_STATUS_LED, LOW);
+      Serial.println("IR LED off");
+    }
+  }
+
+  // If nothing has happened for 2 seconds, print idle status
+  if (currentMillis - lastIrEdgeReportMs >= 2000) {
+    lastIrEdgeReportMs = currentMillis;
+    Serial.print("IR idle level: ");
+    Serial.println(digitalRead(IR_PIN) ? "HIGH" : "LOW");
+  }
   
   // Update life LEDs
   updateLifeLEDs(lives);
