@@ -25,8 +25,7 @@ const int PIN_LED2    = 12;  // LED for 2 lives
 const int PIN_LED3    = 13;  // LED for 3 lives
 int right = 1;
 int left = 0;
-int KY040_CLK_LAATST;
-int KY040_CLK_ACTUEEL;
+
 int ja = 0;
 int lives = 0;
 int ammo = 0;
@@ -34,7 +33,6 @@ int previousLives = -1;
 bool magazineInserted = true;
 bool prevMagazineInserted = false;
 int hitsec = 0;
-int nee = 0;
 int dood = 0;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 // 'Selectie_Standoff', 128x64px
@@ -1099,7 +1097,7 @@ void setup() {
   digitalWrite(KY040_DT, true);
   digitalWrite(KY040_SW, true);
 
-  KY040_CLK_LAATST = digitalRead(KY040_CLK);
+ 
 
 
 }
@@ -1305,9 +1303,9 @@ void loop() {
       display.display();
       break;
       }
-
+    }
+  
   // Update life LEDs
   updateLifeLEDs(lives);
-}
 }
 
