@@ -5,7 +5,7 @@
 #include <Adafruit_SSD1306.h>
 
 // IR Receiver pins
-static const uint8_t IR_PIN = 17;   // IR receiver OUT pin (adjusted to avoid conflicts)
+static const uint8_t IR_PIN = 16;   // IR receiver OUT pin (replaces hitpin)
 static const uint8_t IR_TX_PIN = 18; // IR LED (through resistor + transistor if possible)
 static const uint8_t IR_STATUS_LED = 27; // Optional status LED for IR activity
 
@@ -40,7 +40,6 @@ static const uint32_t LEDC_DUTY = 128; // 50% duty at 8-bit resolution
 
 const int PIN_MAG  = 35;
 const int PIN_TRIGGER = 12;
-const int PIN_HIT     = 16;
 int right2 = 1;
 int left2 = 0;
 const int PIN_LED1    = 15;   // LED for 1 life
@@ -1132,11 +1131,11 @@ void setup() {
   pinMode(PIN_MAG, INPUT_PULLUP);
   pinMode(PIN_TRIGGER, INPUT_PULLUP);
   
-  pinMode(PIN_HIT, INPUT);  // IR sensor - no pull-up for IR receivers
+  // PIN_HIT removed - now using IR_PIN (pin 16) for hit detection
   
   // Initialize hit state to current sensor reading to prevent false trigger at startup
-  prevHitState = digitalRead(PIN_HIT);
-  Serial.print("Initial PIN_HIT state: ");
+  prevHitState = digitalRead(IR_PIN);
+  Serial.print("Initial IR_PIN (hit sensor) state: ");
   Serial.println(prevHitState);
   
   pinMode(PIN_LED1, OUTPUT);
@@ -1251,7 +1250,7 @@ void loop() {
     
     case ALIVE: {
       // Read hit sensor with debouncing
-      bool hitState = digitalRead(PIN_HIT);
+      bool hitState = digitalRead(IR_PIN);
       
       // Detect hit on falling edge (HIGH to LOW transition) with debouncing
       if (hitState == LOW && prevHitState == HIGH) {
